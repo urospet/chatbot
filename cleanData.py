@@ -45,22 +45,13 @@ def readVocs(datafile, corpus_name):
 # Returns True iff bot senteces in a pair 'p' are under the MAX_LENGTH threshold
 def filterPair(p):
     # Input sequences need to preserve the last word for EOS token
-    return len(p[0].split(' ')) < MAX_LENGTH and len(p[1].split(' ')) < MAX_LENGTH
+    return len(p[0].split(' ')) < MAX_LENGTH and \
+        len(p[1].split(' ')) < MAX_LENGTH and \
+        len(p[0]) > 1
 
 # Filter pairs using filterPair condition
 def filterPairs(pairs):
     return [pair for pair in pairs if filterPair(pair)]
-
-#def sortPairs(pairs):
-#    """Sorting questions and answers by the length of questions 
-#       Speed up the training and reduce the loss, reduce amount of padding"""
-#    for length in range(1, 25 + 1):
-#        for pair in pairs:
-#            if (pair[1]) == length:
-#   for i in enumerate(questionsToInt):
-#        if len(i[1]) == length:
-#            sorted_clean_questions.append(questionsToInt[i[0]])
-#            sorted_clean_answers.append(answersToInt[i[0]])
 
 # Using the functions defined above, return a populated voc object and pairs list
 def loadPrepareData(corpus, corpus_name, datafile, save_dir):
