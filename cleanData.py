@@ -51,16 +51,15 @@ def filterPair(p):
 def filterPairs(pairs):
     return [pair for pair in pairs if filterPair(pair)]
 
-#def sortPairs(pairs):
-#    """Sorting questions and answers by the length of questions 
-#       Speed up the training and reduce the loss, reduce amount of padding"""
-#    for length in range(1, 25 + 1):
-#        for pair in pairs:
-#            if (pair[1]) == length:
-#   for i in enumerate(questionsToInt):
-#        if len(i[1]) == length:
-#            sorted_clean_questions.append(questionsToInt[i[0]])
-#            sorted_clean_answers.append(answersToInt[i[0]])
+def sortPairs(pairs):
+    """Sorting questions and answers by the length of questions 
+       Speed up the training and reduce the loss, reduce amount of padding"""
+    sortedPairs = []
+    for length in range(1, 25 + 1):
+        for pair in pairs:
+           if (len(pair[0])) == length:
+              sortedPairs.append(pair)
+    return sortedPairs   
 
 # Using the functions defined above, return a populated voc object and pairs list
 def loadPrepareData(corpus, corpus_name, datafile, save_dir):
@@ -73,6 +72,7 @@ def loadPrepareData(corpus, corpus_name, datafile, save_dir):
     for pair in pairs:
         voc.addSentence(pair[0])
         voc.addSentence(pair[1])
+    pairs = sortPairs(pairs)
     print("Counted words:", voc.num_words)
     return voc, pairs
 
