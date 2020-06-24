@@ -2,7 +2,7 @@ import unicodedata
 import re
 from vocabulary import Voc
 
-MAX_LENGTH = 25 # Maximum sentence length to consider
+MAX_LENGTH = 15 # Maximum sentence length to consider
 
 # Turn a Unicode string to plain ASCII
 def unicodeToAscii(s):

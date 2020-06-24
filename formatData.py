@@ -51,3 +51,4 @@ def extractSentencePairs(conversations):
                 qa_pairs.append([inputLine, targetLine])
     return qa_pairs
 
+

@@ -3,6 +3,7 @@ from __future__ import division
 from __future__ import print_function
 from __future__ import unicode_literals
 
+
 import torch
 from torch.jit import script, trace
 import torch.nn as nn 
@@ -16,10 +17,13 @@ from io import open
 import itertools
 import math
 
+from torch.utils.tensorboard import SummaryWriter
+import torchvision
+
 from formatData import loadLines, loadConversations, extractSentencePairs
 from vocabulary import Voc, PAD_token, EOS_token, SOS_token
 from cleanData  import loadPrepareData, normalizeString, MAX_LENGTH
-
+from evaluation import GreedySearchDecoder, BeamSearchDecoder
 USE_CUDA = torch.cuda.is_available()
 device = torch.device("cuda" if USE_CUDA else "cpu")
 
@@ -88,6 +92,7 @@ voc, pairs = loadPrepareData(corpus, corpus_name, datafile, save_dir)
 print("\npairs:")
 for pair in pairs[:10]:
     print(pair)
+
 
 # Trimming rarely used words out of our vocabulary for faster convergence
 MIN_COUNT = 10 # Minimum word count threshold for trimming 
@@ -454,7 +459,9 @@ def trainIters(model_name, voc, pairs, encoder, decoder, encoder_optimizer, deco
                save_every, clip, corpus_name, loadFilename):
     # Load batches for each iteration
     training_batches = [batch2TrainData(voc, [random.choice(pairs) for _ in range(batch_size)])
-                        for _ in range(n_iteration)]
+                        for _ in range(n_iteration)]  
+    
+    writer = SummaryWriter('runs/mnist_experiment_1')
     
     # Initializations
     print('Initializing ...')
@@ -475,10 +482,11 @@ def trainIters(model_name, voc, pairs, encoder, decoder, encoder_optimizer, deco
         loss = train(input_variable, lengths, target_variable, mask, max_target_len, encoder,
                      decoder, embedding, encoder_optimizer, decoder_optimizer, batch_size, clip)
         print_loss += loss
-        
+
         # Print progress
         if iteration % print_every == 0:
             print_loss_avg = print_loss / print_every
+            writer.add_scalar('training loss', print_loss_avg, iteration)
             print("Iteration: {}; Percent complete: {:.1f}%; Average loss: {:.4f}".format(
                 iteration, iteration / n_iteration * 100, print_loss_avg))
             print_loss = 0
@@ -506,55 +514,6 @@ def trainIters(model_name, voc, pairs, encoder, decoder, encoder_optimizer, deco
 # Defining how the model decode the encoded input
 ##############################################################################
 
-#Greedy decoding
-# For each time step, choose the word with the highest softmax value
-# Steps: 1. Forward input through encoder model.
-#        2. Prepare encoder's ginal hidden layer to be first hidden input to the decoder
-#        3. Initialize decoder's first input as SOS_token
-#        4. Initialize tensors to append decoded words to
-#        5. Iteratively decode one word token at a time:
-#               1. Forward pass through decoder
-#               2. Obtain most likely word token and its softmax score
-#               3. Record token and score
-#               4. Prepare current token to be nex decoder input
-#        6. Return collections of word tokens and scores
-class GreedySearchDecoder(nn.Module):
-    def __init__(self, encoder, decoder):
-        super(GreedySearchDecoder, self).__init__()
-        self.encoder = encoder
-        self.decoder = decoder
-        
-    def forward(self, input_seq, input_length, max_length):
-        # Forward input through encoder model
-        encoder_outputs, encoder_hidden = self.encoder(input_seq, input_length)
-        
-        # Prepare encoder's final hidden layer to be first hidden input to the decoder
-        decoder_hidden = encoder_hidden[:decoder.n_layers]
-        
-        # Initialize decoder input with SOS_token
-        decoder_input = torch.ones(1, 1, device=device, dtype=torch.long) * SOS_token
-        
-        # Initialize tensors to append decoded words to 
-        all_tokens = torch.zeros([0], device=device, dtype=torch.long)
-        all_scores = torch.zeros([0], device=device)
-        
-        # Iteratively decode one word token at a time
-        for _ in range(max_length):
-            # Forward pass through decoder
-            decoder_output, decoder_hidden = self.decoder(decoder_input, decoder_hidden, encoder_outputs)
-            
-            # Obtain most likely word token and tis softmax score
-            decoder_scores, decoder_input = torch.max(decoder_output, dim=1)
-            
-            # Record token and score
-            all_tokens = torch.cat((all_tokens, decoder_input), dim=0)
-            all_scores = torch.cat((all_scores, decoder_scores), dim=0)
-            
-            # Prepare current token to be next decoder input (add a dimension)
-            decoder_input = torch.unsqueeze(decoder_input, 0)
-            
-        #Return collections of word tokens and scores
-        return all_tokens, all_scores
 
 # Evaluating, input: our sentence, output: bot answer
 # Format input sentence as a batch
@@ -574,7 +533,8 @@ def evaluate(encoder, decoder, searcher, voc, sentence, max_length=MAX_LENGTH):
 
     # Decode sentence with searcher
     tokens, scores = searcher(input_batch, lengths, max_length)
-
+    #print(scores)
+    #print(tokens)
     # Indexes -> words
     decoded_words = [voc.index2word[token.item()] for token in tokens]
     return decoded_words
@@ -608,7 +568,7 @@ def evaluateInput(encoder, decoder, searcher, voc):
 #############################################################################
 
 # Configure models
-model_name = 'cb_model2'
+model_name = 'cb_model6'
 attn_model = 'dot'
 #attn_model = 'general'
 #attn_model = 'concat'
@@ -621,10 +581,11 @@ batch_size = 64
 # Set checkpoint to load from; set to None if starting from scratch
 loadFilename = None
 checkpoint_iter = 4000
-#loadFilename = os.path.join(save_dir, model_name, corpus_name, '{}-{}_{}'.format(
-#                   encoder_n_layers, decoder_n_layers, hidden_size),
-#                   '{}_chceckpoint.tar'.format(checkpoint_iter))
 
+#loadFilename = os.path.join(save_dir, model_name, corpus_name, '{}-{}_{}'.format(
+ #                  encoder_n_layers, decoder_n_layers, hidden_size),
+ #                  '{}_chceckpoint.tar'.format(checkpoint_iter))
+#loadFilename = os.path.join(r"C:\Users\uros\Desktop\chatbot-udes\data\save\cb_model5\cornell movie-dialogs corpus\2-2_500\4000_checkpoint.tar")
 # Load model if a loadFilename is provided
 if loadFilename:
     # If loading on same machine the model was trained on
@@ -669,9 +630,8 @@ teacher_forcing_ratio = 1.0
 learning_rate = 0.0001
 decoder_learning_ratio = 5.0
 n_iteration = 4000
-print_every = 1
+print_every = 10
 save_every = 500
-
 # Ensure dropout
 encoder.train()
 decoder.train()
@@ -694,13 +654,13 @@ for state in decoder_optimizer.state.values():
     for k, v in state.items():
         if isinstance(v, torch.Tensor):
             state[k] = v.cuda()
-            
+
 # Run training iterations
 print("Starting Training!")
 trainIters(model_name, voc, pairs, encoder, decoder, encoder_optimizer, decoder_optimizer,
            embedding, encoder_n_layers, decoder_n_layers, save_dir, n_iteration, batch_size,
            print_every, save_every, clip, corpus_name, loadFilename)
-
+"""
 ##############################################################################
 # FINAL STEP : TALKING WITH THE BOT
 ##############################################################################
@@ -710,7 +670,8 @@ encoder.eval()
 decoder.eval()
 
 # Initialize search module
-searcher = GreedySearchDecoder(encoder, decoder)
-
+#searcher = GreedySearchDecoder(encoder, decoder)
+searcher = BeamSearchDecoder(encoder, decoder, beamWidth = 10)
 # Begin chatting 
 evaluateInput(encoder,decoder,searcher,voc)
+"""
