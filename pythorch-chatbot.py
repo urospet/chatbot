@@ -100,7 +100,7 @@ pairs = trimRareWords(voc, pairs)
 #############################################################################
 
 # Configure models
-model_name = 'cb_model7'
+model_name = 'cb_model10'
 attn_model = 'dot'
 #attn_model = 'general'
 #attn_model = 'concat'
@@ -117,7 +117,7 @@ checkpoint = ''
 #loadFilename = os.path.join(save_dir, model_name, corpus_name, '{}-{}_{}'.format(
  #                  encoder_n_layers, decoder_n_layers, hidden_size),
  #                  '{}_chceckpoint.tar'.format(checkpoint_iter))
-loadFilename = os.path.join(r"C:\Users\uros\Desktop\chatbot-udes\data\save\cb_model7\cornell movie-dialogs corpus\2-2_512\8000_checkpoint.tar")
+#loadFilename = os.path.join(r"C:\Users\uros\Desktop\chatbot-udes\data\save\cb_model7\cornell movie-dialogs corpus\2-2_512\8000_checkpoint.tar")
 # Load model if a loadFilename is provided
 if loadFilename:
     # If loading on same machine the model was trained on
@@ -156,13 +156,13 @@ print('Models built and ready to go!')
 ##############################################################################
 # STEP 8 : RUN THE TRAINING
 ##############################################################################
-"""
+
 # Configure training/optimization
 clip = 50.0
 teacher_forcing_ratio = 1.0
 learning_rate = 0.0001
 decoder_learning_ratio = 5.0
-n_iteration = 8000
+n_iteration = 400000
 print_every = 10
 save_every = 500
 # Ensure dropout
@@ -198,13 +198,13 @@ trainIters(model_name, voc, pairs, encoder, decoder, encoder_optimizer, decoder_
 ##############################################################################
 # FINAL STEP : TALKING WITH THE BOT
 ##############################################################################
-"""
+
 # Set dropout layers to eval mode
 encoder.eval()
 decoder.eval()
 
 # Initialize search module
 searcher = GreedySearchDecoder(encoder, decoder)
-#searcher = BeamSearchDecoder(encoder, decoder, beamWidth = 5)
+#searcher = BeamSearchDecoder(encoder, decoder, beamWidth = 10)
 # Begin chatting 
 evaluateInput(encoder,decoder,searcher,voc)
