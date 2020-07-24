@@ -115,7 +115,7 @@ def trainIters(model_name, voc, pairs, encoder, decoder, encoder_optimizer, deco
     training_batches = [batch2TrainData(voc, [random.choice(pairs) for _ in range(batch_size)])
                         for _ in range(n_iteration)]  
     
-    writer = SummaryWriter('runs/mnist_experiment_10')
+    writer = SummaryWriter('runs/4layerlowlr')
     
     # Initializations
     print('Initializing ...')

@@ -12,7 +12,8 @@ MOVIE_LINES_FIELDS = ["lineID", "characterID", "movieID", "character", "text"]
 MOVIE_CONVERSATIONS_FIELDS= ["charcter1ID", "character2ID", "movieID", "utteranceIDs"]
 
 #Looking at the original format
-corpus_name = "cornell movie-dialogs corpus"
+#corpus_name = "cornell movie-dialogs corpus"
+corpus_name = "openSubtitles+cornell"
 corpus = os.path.join("data", corpus_name)
 
 #Define path to new file

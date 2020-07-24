@@ -15,9 +15,11 @@ from evaluation  import GreedySearchDecoder, BeamSearchDecoder
 from encoder     import EncoderRNN
 from decoder     import LuongAttnDecoderRNN
 from trainingProcedure import trainIters
+from vocabulary import Voc
 from evaluationProcedure import evaluateInput
 USE_CUDA = torch.cuda.is_available()
 device = torch.device("cuda" if USE_CUDA else "cpu")
+
 
 #############################################################################
 # PART 1 : LOAD & PREPROCESS DATA 
@@ -100,15 +102,24 @@ pairs = trimRareWords(voc, pairs)
 #############################################################################
 
 # Configure models
-model_name = 'cb_model10'
+model_name = 'cb_model4layerlowlr'
 attn_model = 'dot'
 #attn_model = 'general'
 #attn_model = 'concat'
+
 hidden_size = 512
-encoder_n_layers = 2 
-decoder_n_layers = 2
+#hidden_size = 700 
+
+encoder_n_layers = 4 
+decoder_n_layers = 4
+#encoder_n_layers = 3
+#decoder_n_layers = 3
+
+#dropout = 0.1
 dropout = 0.1
+
 batch_size = 32
+
 
 # Set checkpoint to load from; set to None if starting from scratch
 loadFilename = None
@@ -117,11 +128,12 @@ checkpoint = ''
 #loadFilename = os.path.join(save_dir, model_name, corpus_name, '{}-{}_{}'.format(
  #                  encoder_n_layers, decoder_n_layers, hidden_size),
  #                  '{}_chceckpoint.tar'.format(checkpoint_iter))
-#loadFilename = os.path.join(r"C:\Users\uros\Desktop\chatbot-udes\data\save\cb_model7\cornell movie-dialogs corpus\2-2_512\8000_checkpoint.tar")
+loadFilename = os.path.join(r"C:\Users\uros\Desktop\chatbot-udes\data\save\cb_model4layerlowlr\openSubtitles+cornell\4-4_512\400000_checkpoint.tar")
 # Load model if a loadFilename is provided
 if loadFilename:
     # If loading on same machine the model was trained on
     checkpoint = torch.load(loadFilename)
+    
     
     #If loading a model trained on GPU to CPU
     #checkpoint = torch.load(loadFilename, map_location=torch.device('cpu'))
@@ -131,12 +143,17 @@ if loadFilename:
     encoder_optimizer_sd = checkpoint['en_opt']
     decoder_optimizer_sd = checkpoint['de_opt']
     embedding_sd = checkpoint['embedding']
+    voc = Voc(corpus_name)
     voc.__dict__ = checkpoint['voc_dict']
 
 print('Building encoder and decoder ...')
+
+ 
+
 # Initialize word embeddings
 embedding = nn.Embedding(voc.num_words, hidden_size)
 if loadFilename:
+    
     embedding.load_state_dict(embedding_sd)
     
 # Initialize encoder & decoder models
@@ -159,18 +176,25 @@ print('Models built and ready to go!')
 
 # Configure training/optimization
 clip = 50.0
+
 teacher_forcing_ratio = 1.0
+#teacher_forcing_ratio = 0.5
+
+#learning_rae = 0.0001
+#learning_rate = 0.00015 model errthiun
+#learning_rate = 0.000001 errr2
 learning_rate = 0.0001
 decoder_learning_ratio = 5.0
 n_iteration = 400000
-print_every = 10
-save_every = 500
+print_every = 1000
+save_every = 10000
 # Ensure dropout
 encoder.train()
 decoder.train()
 
 # Initialize optimizers
 print('Building optimizers ...')
+
 encoder_optimizer = optim.Adam(encoder.parameters(), lr=learning_rate)
 decoder_optimizer = optim.Adam(decoder.parameters(), lr=learning_rate * decoder_learning_ratio)
 if loadFilename:
@@ -182,6 +206,7 @@ for state in encoder_optimizer.state.values():
     for k, v in state.items():
         if isinstance(v, torch.Tensor):
             state[k] = v.cuda()
+            
 
 for state in decoder_optimizer.state.values():
     for k, v in state.items():
@@ -208,3 +233,4 @@ searcher = GreedySearchDecoder(encoder, decoder)
 #searcher = BeamSearchDecoder(encoder, decoder, beamWidth = 10)
 # Begin chatting 
 evaluateInput(encoder,decoder,searcher,voc)
+

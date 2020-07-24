@@ -5,7 +5,7 @@ from vocabulary import Voc
 MAX_LENGTH = 20 # Maximum sentence length to consider
 
 # Trimming rarely used words out of our vocabulary for faster convergence
-MIN_COUNT = 3 # Minimum word count threshold for trimming 
+MIN_COUNT = 5 # Minimum word count threshold for trimming 
 
 # Turn a Unicode string to plain ASCII
 def unicodeToAscii(s):
